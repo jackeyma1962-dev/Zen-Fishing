@@ -46,7 +46,7 @@ function App() {
 
   const initialData = loadSaveData();
 
-  const [totalMoney, setTotalMoney] = useState(initialData?.money || 0);
+  const [totalMoney, setTotalMoney] = useState<number>(initialData?.money || 0);
   const [inventory, setInventory] = useState<Record<string, { count: number; totalValue: number; data: FishAnalysis }>>(initialData?.inventory || {});
   const [upgrades, setUpgrades] = useState<UpgradeState>(initialData?.upgrades || { rodLevel: 0, baitLevel: 0, reelLevel: 0 });
 
@@ -103,8 +103,8 @@ function App() {
 
   const handlePurchase = (item: ShopItem) => {
       if (totalMoney >= item.price) {
-          setTotalMoney(prev => prev - item.price);
-          setUpgrades(prev => {
+          setTotalMoney((prev: number) => prev - item.price);
+          setUpgrades((prev: UpgradeState) => {
               const newState = { ...prev };
               if (item.type === 'rod') newState.rodLevel = item.levelRequired;
               if (item.type === 'bait') newState.baitLevel = item.levelRequired;
@@ -288,7 +288,7 @@ function App() {
 
   const keepFishAndReset = () => {
     if (caughtFish) {
-        setTotalMoney(prev => prev + caughtFish.price);
+        setTotalMoney((prev: number) => prev + caughtFish.price);
         setInventory(prev => {
             const current = prev[caughtFish.name] || { count: 0, totalValue: 0, data: caughtFish };
             return {
