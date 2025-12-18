@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { GameState, FishEntity } from '../types';
 
 interface GameCanvasProps {
@@ -10,9 +10,74 @@ interface GameCanvasProps {
 
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, rodPosition, hookDepth, fishes }) => {
   
+  // Deterministic visual generator based on fish ID
+  // This ensures the fish looks the same across frames without needing extra state
+  const getFishVisuals = (id: number) => {
+    const hash = id * 2654435761 % 2 ** 32; // Simple integer hash
+    
+    // 1. Color Variation (Hue Rotate)
+    const hue = Math.abs(hash % 360);
+    
+    // 2. Size Variation (0.8x to 1.3x)
+    const scale = 0.8 + (Math.abs(hash % 50) / 100);
+    
+    // 3. Animation Type & Speed
+    const animType = Math.abs(hash % 3); // 0, 1, or 2
+    const duration = 2 + (Math.abs(hash % 20) / 10); // 2s - 4s
+    const delay = -(Math.abs(hash % 50) / 10); // Random start time
+    
+    let animName = 'swim-basic';
+    if (animType === 1) animName = 'swim-wobble';
+    if (animType === 2) animName = 'swim-dash';
+
+    return {
+      filter: `hue-rotate(${hue}deg) drop-shadow(0 4px 6px rgba(0,0,0,0.3))`,
+      animation: `${animName} ${duration}s ease-in-out infinite alternate`,
+      animationDelay: `${delay}s`,
+      transform: `scale(${scale})`
+    };
+  };
+
+  const isWaiting = gameState === GameState.WAITING;
+  const isBite = gameState === GameState.BITE;
+
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       
+      {/* Inject custom keyframes for fish and bobber animations */}
+      <style>{`
+        @keyframes swim-basic {
+          0% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-8px) rotate(-3deg); }
+          100% { transform: translateY(8px) rotate(3deg); }
+        }
+        @keyframes swim-wobble {
+          0% { transform: rotate(-5deg) scaleY(1); }
+          50% { transform: rotate(0deg) scaleY(1.05); }
+          100% { transform: rotate(5deg) scaleY(1); }
+        }
+        @keyframes swim-dash {
+          0% { transform: translateX(0); }
+          30% { transform: translateX(5px); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes bobber-waiting {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        @keyframes bobber-bite {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          25% { transform: translateY(4px) rotate(-5deg); }
+          75% { transform: translateY(4px) rotate(5deg); }
+        }
+        .animate-bobber-waiting {
+          animation: bobber-waiting 2s ease-in-out infinite;
+        }
+        .animate-bobber-bite {
+          animation: bobber-bite 0.15s ease-in-out infinite;
+        }
+      `}</style>
+
       {/* Sky */}
       <div className="absolute top-0 left-0 w-full h-[30%] bg-gradient-to-b from-sky-300 to-blue-200">
         <div className="absolute top-10 left-10 w-20 h-20 bg-yellow-100 rounded-full blur-2xl opacity-60"></div>
@@ -28,42 +93,67 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, rodPosition, hookDep
         <div className="absolute top-0 left-0 w-full h-full opacity-20 bg-[linear-gradient(45deg,transparent_40%,rgba(255,255,255,0.3)_45%,transparent_50%)] bg-[length:200%_200%] animate-pulse"></div>
 
         {/* Fishes */}
-        {fishes.map((fish) => (
-          <div
-            key={fish.id}
-            className="absolute transition-transform duration-1000 ease-linear"
-            style={{
-              left: `${fish.x}%`,
-              top: `${fish.y}%`,
-              transform: `scaleX(${fish.direction})`,
-              width: '40px',
-              height: '20px',
-              opacity: 0.6
-            }}
-          >
-             {/* Simple CSS Fish */}
-             <svg viewBox="0 0 100 60" className="fill-current text-white drop-shadow-lg">
-                <path d="M80,30 Q60,5 30,30 T0,30 Q20,55 50,30 T100,30 L80,30 L90,10 L80,30 Z" />
-             </svg>
-          </div>
-        ))}
+        {fishes.map((fish) => {
+          const visuals = getFishVisuals(fish.id);
+          
+          return (
+            <div
+              key={fish.id}
+              className="absolute transition-all duration-1000 ease-linear"
+              style={{
+                left: `${fish.x}%`,
+                top: `${fish.y}%`,
+                // Combine game logic direction with visual scale
+                width: '40px',
+                height: '20px',
+                opacity: 0.8,
+                zIndex: 10
+              }}
+            >
+               {/* 1. Directional Flip Container */}
+               <div 
+                 style={{ 
+                    transform: `scaleX(${fish.direction})`,
+                    width: '100%', 
+                    height: '100%' 
+                 }}
+               >
+                 {/* 2. Visual Animation Container (Swim motion + Color) */}
+                 <div style={visuals} className="w-full h-full origin-center">
+                    <svg viewBox="0 0 100 60" className="fill-current text-white/90">
+                        {/* Body */}
+                        <path d="M80,30 Q60,5 30,30 T0,30 Q20,55 50,30 T100,30 L80,30 Z" />
+                        {/* Tail Detail */}
+                        <path d="M80,30 L95,15 L95,45 L80,30 Z" className="opacity-80" />
+                        {/* Fin */}
+                        <path d="M40,30 Q50,15 60,30" stroke="currentColor" strokeWidth="2" fill="none" className="opacity-50" />
+                        {/* Eye */}
+                        <circle cx="20" cy="25" r="3" className="fill-black/50" />
+                    </svg>
+                 </div>
+               </div>
+            </div>
+          );
+        })}
         
         {/* Hook Line */}
         <div 
-            className="absolute top-0 w-0.5 bg-white/50 origin-top transition-none"
+            className="absolute top-0 w-0.5 bg-white/50 origin-top transition-none z-20"
             style={{
-                left: '50%', // Simplified to always center for this view, or use rodPosition
+                left: '50%', 
                 height: `${hookDepth}%`
             }}
         >
             {/* The Hook/Lure */}
-            <div className="absolute bottom-0 -left-1.5 w-3 h-4 bg-red-500 rounded-b-full border border-white/50 shadow-[0_0_10px_rgba(255,0,0,0.8)]"></div>
+            <div className={`absolute bottom-0 -left-1.5 w-3 h-4 bg-red-500 rounded-b-full border border-white/50 shadow-[0_0_10px_rgba(255,0,0,0.8)] ${isWaiting ? 'animate-bobber-waiting' : ''} ${isBite ? 'animate-bobber-bite' : ''}`}>
+                <div className="absolute -bottom-1 left-1 w-1 h-2 bg-slate-300 rounded-full"></div>
+            </div>
         </div>
 
       </div>
 
       {/* Surface Water Line */}
-      <div className="absolute top-[30%] left-0 w-full h-4 bg-blue-400 opacity-50 blur-[2px]"></div>
+      <div className="absolute top-[30%] left-0 w-full h-4 bg-blue-400 opacity-50 blur-[2px] z-30"></div>
 
     </div>
   );
