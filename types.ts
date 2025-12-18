@@ -1,3 +1,4 @@
+
 export enum GameState {
   IDLE = 'IDLE',
   CASTING = 'CASTING',
@@ -22,10 +23,9 @@ export interface CatchLog {
   id: string;
   timestamp: number;
   data: FishAnalysis;
-  imageSeed: number; // For reproducible random fish images
+  imageSeed: number;
 }
 
-// Visual types for the canvas
 export interface FishEntity {
   x: number;
   y: number;
@@ -35,11 +35,11 @@ export interface FishEntity {
   id: number;
 }
 
-// Upgrade Levels (0 is default)
 export interface UpgradeState {
-  rodLevel: number; // Increases Safe Zone Width
-  baitLevel: number; // Increases Luck (Rarity chance)
-  reelLevel: number; // Increases Reel Power (Catch speed)
+  playerLevel: number; // Current player progress level (1-10)
+  rodLevel: number; 
+  baitLevel: number; 
+  reelLevel: number; 
 }
 
 export interface ShopItem {
@@ -48,5 +48,11 @@ export interface ShopItem {
   name: string;
   description: string;
   price: number;
-  levelRequired: number; // The level you get AFTER buying this (e.g., buying Level 1 requires current Level 0)
+  levelRequired: number;
+}
+
+export interface LevelGoal {
+  targetFish: string;
+  requiredToolLevel: number;
+  rewardText: string;
 }

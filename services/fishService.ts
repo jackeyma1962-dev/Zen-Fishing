@@ -1,102 +1,168 @@
+
 import { FishAnalysis } from "../types";
 
-// Local data for procedural generation
-const FISH_PREFIXES = [
-  "深海", "發光的", "巨大的", "古代", "機械", 
-  "透明的", "彩虹", "幽靈", "火焰", "冰霜", 
-  "黃金", "劇毒", "神秘", "飛天", "水晶"
-];
+interface BiomeData {
+  name: string;
+  prefixes: string[];
+  types: string[];
+  descriptions: string[];
+}
 
-const FISH_TYPES = [
-  "鮪魚", "鱸魚", "鯊魚", "鰻魚", "水母", 
-  "螃蟹", "錦鯉", "魟魚", "魷魚", "比目魚", 
-  "鮭魚", "石斑", "小丑魚", "龍蝦", "海馬"
-];
+const LEVEL_BIOMES: Record<number, BiomeData> = {
+  1: {
+    name: "淺水港灣",
+    prefixes: ["普通", "小巧", "常見", "活潑"],
+    types: ["鮪魚", "沙丁魚", "鯖魚", "鱈魚", "秋刀魚"],
+    descriptions: ["近海海域最常見的生物。", "成群結隊游動，非常容易上鉤。"]
+  },
+  2: {
+    name: "發光深淵",
+    prefixes: ["發光的", "深海", "螢光", "電脈"],
+    types: ["鱸魚", "烏賊", "燈泡魚", "電鰻", "水母"],
+    descriptions: ["身體散發出幽幽藍光的奇異生物。", "棲息在光線無法抵達的斷崖邊。"]
+  },
+  3: {
+    name: "遠洋巨獸區",
+    prefixes: ["巨大的", "兇猛的", "遠洋", "霸主"],
+    types: ["鯊魚", "旗魚", "曼波魚", "章魚", "虎鯨"],
+    descriptions: ["具有強大掠食本能的深海王者。", "體型龐大，普通漁具難以抗衡。"]
+  },
+  4: {
+    name: "古代遺蹟海域",
+    prefixes: ["古代", "甲殼", "遺傳", "長壽"],
+    types: ["鰻魚", "海龍", "鱟", "鸚鵡螺", "腔棘魚"],
+    descriptions: ["活化石般的生命，見證了海洋的歷史。", "覆蓋著如岩石般堅硬的甲殼。"]
+  },
+  5: {
+    name: "機械廢土港",
+    prefixes: ["機械", "鋼鐵", "廢棄", "電鍍", "改裝"],
+    types: ["水母", "螃蟹", "垃圾魚", "發電機", "機器魚"],
+    descriptions: ["受工業廢料影響而產生的半機械生物。", "外殼閃爍著冰冷的金屬光澤。"]
+  },
+  6: {
+    name: "極寒冰川層",
+    prefixes: ["冰霜", "凍結", "透明", "極光"],
+    types: ["螃蟹", "北極鱈", "冰魚", "雪蝦", "寒帶章魚"],
+    descriptions: ["身體幾近透明，能在零度以下存活。", "看起來像冰雕一樣精緻。"]
+  },
+  7: {
+    name: "彩虹珊瑚島",
+    prefixes: ["彩虹", "絢麗", "熱帶", "斑斕"],
+    types: ["錦鯉", "小丑魚", "蝴蝶魚", "隆頭魚", "鸚哥魚"],
+    descriptions: ["擁有令人目眩神迷的色彩。", "在繽紛的珊瑚礁中穿梭。"]
+  },
+  8: {
+    name: "幽靈迷霧海",
+    prefixes: ["幽靈", "幻影", "霧氣", "透明", "無聲"],
+    types: ["魟魚", "海龍", "靈體魚", "虛無水母"],
+    descriptions: ["如同海霧般若隱若現，難以捉摸。", "傳說中只有在月全食才會出現。"]
+  },
+  9: {
+    name: "熔岩火山口",
+    prefixes: ["火焰", "熾熱", "熔岩", "黑曜石"],
+    types: ["魷魚", "火龍魚", "紅岩蟹", "岩漿鰻"],
+    descriptions: ["能在極端高溫中生存的強韌生物。", "體表溫度足以煮沸海水。"]
+  },
+  10: {
+    name: "黃金夢境",
+    prefixes: ["黃金", "神聖", "星辰", "至尊"],
+    types: ["龍蝦", "金龍", "大師魚", "傳說龍魚"],
+    descriptions: ["海洋中至高無上的存在。", "每一片鱗片都價值連城。"]
+  }
+};
 
-const DESCRIPTIONS = [
-  "這是一種罕見的生物，通常棲息在深海區域，很難被捕捉到。",
-  "牠的鱗片閃爍著奇異的光芒，似乎具有某種未知的魔力。",
-  "科學家對這種魚的生理結構感到困惑，牠似乎不屬於這個時代。",
-  "這種魚游動速度極快，肉質非常緊實，是市場上的搶手貨。",
-  "傳說中看見這種魚會帶來好運，是漁夫們夢寐以求的漁獲。",
-  "外表看起來很危險，但其實性格非常溫馴。",
-  "身上帶有奇特的斑紋，像是某種古老的文字。",
-  "這種生物在夜晚會發出微弱的螢光，用來吸引獵物。",
-  "牠的鰭像翅膀一樣張開，彷彿隨時準備起飛。",
-  "體內含有特殊的礦物質，讓牠的身體呈現半透明狀。"
-];
+const DEFAULT_BIOME: BiomeData = {
+  name: "未知海域",
+  prefixes: ["神秘", "稀有", "變異", "幻影"],
+  types: ["生物", "幻影魚", "星辰魚", "虛空物"],
+  descriptions: ["無法用常理解釋的奇特生物。"]
+};
 
 const COOKING_TIPS = [
-  "建議清蒸，保留最原始的鮮甜口感。",
-  "肉質較硬，適合燉湯或紅燒，風味獨特。",
-  "含有微量特殊成分，處理時需小心，但風味絕佳。",
-  "適合做成生魚片，油脂豐富，入口即化。",
-  "最好不要食用，當作觀賞魚更有價值。",
-  "加點薑絲和蔥花，味道會提升一個檔次。",
-  "炭烤後撒上海鹽，是下酒菜的絕佳選擇。",
-  "肉質帶有淡淡的果香，非常適合做成涼拌菜。",
-  "建議油炸，酥脆的口感讓人欲罷不能。"
+  "建議清蒸，保留原始鮮甜。",
+  "肉質適合火烤，加點海鹽風味更佳。",
+  "適合做成生魚片，入口即化。",
+  "建議紅燒，風味濃厚。",
+  "油炸至酥脆是最好的處理方式。"
 ];
 
-// Pseudo-random number generator based on seed
 const seededRandom = (seed: number) => {
   const x = Math.sin(seed++) * 10000;
   return x - Math.floor(x);
 };
 
-const generateFishDetails = async (seed: number, luckLevel: number = 0): Promise<FishAnalysis> => {
-  // Simulate network delay for "analyzing" effect
-  await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 800));
+export const generateFishDetails = async (
+  seed: number, 
+  luckLevel: number = 0, 
+  targetFishName?: string,
+  playerLevel: number = 1
+): Promise<FishAnalysis> => {
+  // 模擬分析動畫延遲
+  await new Promise(resolve => setTimeout(resolve, 800));
 
-  // Use the seed to generate consistent results for the same fish
-  // We use a mutable variable for the seed inside this scope to get a sequence
   let localSeed = seed;
   const rng = () => seededRandom(localSeed++);
   
-  // 1. Calculate Rarity (Weighted with Luck)
-  // Base: 50% Common (1), 30% Uncommon (2), 15% Rare (3), 4% Epic (4), 1% Legendary (5)
-  // Luck Level 1 adds +5% to top tier chances logic
+  // 機率邏輯修正：如果是目標魚且尚未捕獲，機率提升至 80%
+  const isTargetActive = !!targetFishName;
+  const targetThreshold = isTargetActive ? 0.8 : 0.02; 
+  const forceTarget = isTargetActive && Math.random() < targetThreshold;
+
   const rand = rng();
-  
-  // Luck bonus simply shifts the threshold down, making high tiers easier to hit
-  // luckLevel 0: 0, Level 1: 0.05, Level 2: 0.10, etc.
   const luckBonus = luckLevel * 0.03; 
 
   let rarity = 1;
+  if (forceTarget) {
+      rarity = rng() > 0.5 ? 4 : 3;
+  } else {
+      if (rand > (0.98 - luckBonus)) rarity = 5;
+      else if (rand > (0.92 - luckBonus)) rarity = 4;
+      else if (rand > (0.75 - luckBonus)) rarity = 3;
+      else if (rand > (0.45 - luckBonus * 2)) rarity = 2;
+  }
+
+  // 嚴格根據傳入的等級選擇生態池
+  const biome = LEVEL_BIOMES[playerLevel] || DEFAULT_BIOME;
+
+  let name = "";
+  let description = "";
   
-  // thresholds must be adjusted carefully
-  if (rand > (0.99 - luckBonus)) rarity = 5;
-  else if (rand > (0.95 - luckBonus)) rarity = 4;
-  else if (rand > (0.80 - luckBonus)) rarity = 3;
-  else if (rand > (0.50 - luckBonus * 2)) rarity = 2; // Common gets squeezed
+  if (forceTarget && targetFishName) {
+      name = targetFishName;
+      description = `【等級 ${playerLevel} 任務目標】棲息在 ${biome.name} 的珍貴生物。`;
+  } else {
+      const pIdx = Math.floor(rng() * biome.prefixes.length);
+      const tIdx = Math.floor(rng() * biome.types.length);
+      const dIdx = Math.floor(rng() * biome.descriptions.length);
+      
+      name = `${biome.prefixes[pIdx]}${biome.types[tIdx]}`;
+      description = biome.descriptions[dIdx];
 
-  // 2. Select Name Components
-  const prefixIndex = Math.floor(rng() * FISH_PREFIXES.length);
-  const typeIndex = Math.floor(rng() * FISH_TYPES.length);
-  const name = `${FISH_PREFIXES[prefixIndex]}${FISH_TYPES[typeIndex]}`;
+      // 再次確保隨機生成的名稱不會剛好撞到目標魚
+      if (name === targetFishName) {
+          name = `變異的${name}`;
+      }
+  }
 
-  // 3. Select Description and Cooking Tip
-  const descIndex = Math.floor(rng() * DESCRIPTIONS.length);
-  const tipIndex = Math.floor(rng() * COOKING_TIPS.length);
+  const tipIdx = Math.floor(rng() * COOKING_TIPS.length);
 
-  // 4. Calculate Price based on Rarity + Variance
-  // Base prices: 1: 10-50, 2: 50-150, 3: 150-500, 4: 500-2000, 5: 2000-5000
   let basePrice = 10;
   switch (rarity) {
-    case 1: basePrice = 10 + Math.floor(rng() * 40); break;
-    case 2: basePrice = 50 + Math.floor(rng() * 100); break;
-    case 3: basePrice = 150 + Math.floor(rng() * 350); break;
-    case 4: basePrice = 500 + Math.floor(rng() * 1500); break;
-    case 5: basePrice = 2000 + Math.floor(rng() * 3000); break;
+    case 1: basePrice = 10 + (playerLevel * 5) + Math.floor(rng() * 40); break;
+    case 2: basePrice = 50 + (playerLevel * 20) + Math.floor(rng() * 100); break;
+    case 3: basePrice = 150 + (playerLevel * 50) + Math.floor(rng() * 350); break;
+    case 4: basePrice = 600 + (playerLevel * 200) + Math.floor(rng() * 1500); break;
+    case 5: basePrice = 3000 + (playerLevel * 1000) + Math.floor(rng() * 5000); break;
   }
   
   return {
     name,
-    description: DESCRIPTIONS[descIndex],
+    description,
     rarity,
-    cookingTip: COOKING_TIPS[tipIndex],
-    price: basePrice
+    cookingTip: COOKING_TIPS[tipIdx],
+    price: forceTarget ? Math.floor(basePrice * 1.8) : basePrice
   };
 };
 
-export { generateFishDetails };
+// 用於獲取海域名稱的輔助函數
+export const getBiomeName = (level: number) => LEVEL_BIOMES[level]?.name || "未知海域";
