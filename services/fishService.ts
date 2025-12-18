@@ -1,5 +1,9 @@
 
+import { GoogleGenAI, Type } from "@google/genai";
 import { FishAnalysis } from "../types";
+
+// Initialize Google GenAI client
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 
 interface BiomeData {
   name: string;
@@ -78,32 +82,26 @@ const DEFAULT_BIOME: BiomeData = {
   descriptions: ["無法用常理解釋的奇特生物。"]
 };
 
-const COOKING_TIPS = [
-  "建議清蒸，保留原始鮮甜。",
-  "肉質適合火烤，加點海鹽風味更佳。",
-  "適合做成生魚片，入口即化。",
-  "建議紅燒，讓醬汁滲透進纖維中。",
-  "油炸至酥脆是最好的處理方式。"
-];
-
 const seededRandom = (seed: number) => {
   const x = Math.sin(seed++) * 10000;
   return x - Math.floor(x);
 };
 
+/**
+ * 主要魚類生成邏輯：
+ * 1. 根據 Level 決定海域與魚類名稱
+ * 2. 使用 Gemini 生成詳細的詩意描述與料理建議
+ */
 export const generateFishDetails = async (
   seed: number, 
   luckLevel: number = 0, 
   targetFishName?: string,
   playerLevel: number = 1
 ): Promise<FishAnalysis> => {
-  // 模擬分析動畫延遲
-  await new Promise(resolve => setTimeout(resolve, 800));
-
   let localSeed = seed;
   const rng = () => seededRandom(localSeed++);
   
-  // 機率邏輯修正：如果是目標魚且尚未捕獲，機率提升至 80%
+  // 任務邏輯
   const isTargetActive = !!targetFishName;
   const targetThreshold = isTargetActive ? 0.8 : 0.02; 
   const forceTarget = isTargetActive && Math.random() < targetThreshold;
@@ -121,47 +119,81 @@ export const generateFishDetails = async (
       else if (rand > (0.45 - luckBonus * 2)) rarity = 2;
   }
 
-  // 根據等級選擇生態池
   const biome = LEVEL_BIOMES[playerLevel] || DEFAULT_BIOME;
+  let baseName = "";
+  let localDesc = "";
 
-  let name = "";
-  let description = "";
-  
   if (forceTarget && targetFishName) {
-      name = targetFishName;
-      description = `這是等級 ${playerLevel} 的傳說目標，棲息在「${biome.name}」的稀有生物。`;
+      baseName = targetFishName;
+      localDesc = `等級 ${playerLevel} 的核心任務目標。`;
   } else {
       const pIdx = Math.floor(rng() * biome.prefixes.length);
       const tIdx = Math.floor(rng() * biome.types.length);
       const dIdx = Math.floor(rng() * biome.descriptions.length);
-      
-      name = `${biome.prefixes[pIdx]}${biome.types[tIdx]}`;
-      description = biome.descriptions[dIdx];
-
-      // 防止隨機生成的名稱剛好撞到目前的目標魚
-      if (name === targetFishName) {
-          name = `異變的${name}`;
-      }
+      baseName = `${biome.prefixes[pIdx]}${biome.types[tIdx]}`;
+      localDesc = biome.descriptions[dIdx];
+      if (baseName === targetFishName) baseName = `異變的${baseName}`;
   }
 
-  const tipIdx = Math.floor(rng() * COOKING_TIPS.length);
+  // --- AI 生成階段 ---
+  try {
+    const prompt = `你是一個資深的海洋學家與詩人。
+    請為以下魚類生成資料：
+    名稱：${baseName}
+    稀有度：${rarity}/5
+    海域環境：${biome.name} (等級 ${playerLevel})
+    
+    請提供：
+    1. 一段極具詩意且符合海域特色的繁體中文生物描述。
+    2. 一個獨具創意且誘人的料理建議。
+    請以 JSON 格式輸出。`;
 
-  let basePrice = 10;
-  switch (rarity) {
-    case 1: basePrice = 10 + (playerLevel * 5) + Math.floor(rng() * 40); break;
-    case 2: basePrice = 50 + (playerLevel * 20) + Math.floor(rng() * 100); break;
-    case 3: basePrice = 150 + (playerLevel * 50) + Math.floor(rng() * 350); break;
-    case 4: basePrice = 600 + (playerLevel * 200) + Math.floor(rng() * 1500); break;
-    case 5: basePrice = 3000 + (playerLevel * 1000) + Math.floor(rng() * 5000); break;
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            description: { type: Type.STRING },
+            cookingTip: { type: Type.STRING },
+          },
+          required: ["description", "cookingTip"],
+        },
+      },
+    });
+
+    const result = JSON.parse(response.text || "{}");
+    
+    let basePrice = 10;
+    switch (rarity) {
+      case 1: basePrice = 10 + (playerLevel * 5) + Math.floor(rng() * 40); break;
+      case 2: basePrice = 50 + (playerLevel * 20) + Math.floor(rng() * 100); break;
+      case 3: basePrice = 150 + (playerLevel * 50) + Math.floor(rng() * 350); break;
+      case 4: basePrice = 600 + (playerLevel * 200) + Math.floor(rng() * 1500); break;
+      case 5: basePrice = 3000 + (playerLevel * 1000) + Math.floor(rng() * 5000); break;
+    }
+
+    return {
+      name: baseName,
+      description: result.description || localDesc,
+      rarity,
+      cookingTip: result.cookingTip || "建議簡單火烤，保留原始海味。",
+      price: forceTarget ? Math.floor(basePrice * 1.8) : basePrice
+    };
+
+  } catch (error) {
+    console.warn("AI Generation skipped or failed, using local data.");
+    // 備援邏輯與原本一致
+    return {
+      name: baseName,
+      description: localDesc,
+      rarity,
+      cookingTip: "適合清蒸，保留原始鮮甜。",
+      price: 10 * rarity * playerLevel
+    };
   }
-  
-  return {
-    name,
-    description,
-    rarity,
-    cookingTip: COOKING_TIPS[tipIdx],
-    price: forceTarget ? Math.floor(basePrice * 1.8) : basePrice
-  };
 };
 
 export const getBiomeName = (level: number) => LEVEL_BIOMES[level]?.name || "未知海域";
