@@ -44,10 +44,10 @@ const Inventory: React.FC<InventoryProps> = ({ caughtFishes, totalMoney, playerL
         </div>
       </div>
 
-      {/* Biome Indicator */}
+      {/* Biome Indicator: 新增海域顯示，加強等級感知 */}
       <div className="bg-blue-950/80 border border-blue-500/20 rounded-xl p-2 mb-2 shadow-lg shrink-0 pointer-events-auto flex items-center gap-2">
          <MapPin size={12} className="text-blue-400" />
-         <span className="text-white text-[10px] font-bold uppercase tracking-tighter">{currentBiome}</span>
+         <span className="text-white text-[10px] font-bold uppercase tracking-tighter">當前海域：{currentBiome}</span>
       </div>
 
       {/* Fish List */}

@@ -15,7 +15,7 @@ import { HelpCircle, ShoppingBag, RotateCcw, Trophy, CheckCircle2, Circle } from
 const TENSION_DECAY = 1.0; 
 const PROGRESS_GAIN = 0.4;
 const PROGRESS_LOSS = 0.6;
-const STORAGE_KEY = 'ZEN_FISHING_SAVE_FINAL_V2';
+const STORAGE_KEY = 'ZEN_FISHING_SAVE_V3_STABLE';
 
 const LEVEL_GOALS: Record<number, LevelGoal> = {
   1: { targetFish: "深海鮪魚", requiredToolLevel: 1, rewardText: "晉升至 Lv.2：探索發光海域" },
@@ -70,6 +70,7 @@ function App() {
       gameStateRef.current = gameState; 
   }, [gameState]);
   
+  // 重要：隨時保持 Ref 與 State 同步，用於 handleCatch 等非同步操作
   useEffect(() => { upgradesRef.current = upgrades; }, [upgrades]);
 
   const requestRef = useRef<number>();
@@ -226,11 +227,11 @@ function App() {
     setIsAnalyzing(true);
     const seed = Math.floor(Math.random() * 999999);
     
-    // CRITICAL FIX: Always use upgradesRef.current.playerLevel to avoid closure stale state
+    // 修復點：永遠使用 upgradesRef 獲取最新等級，避免閉包舊值
     const currentLevel = upgradesRef.current.playerLevel;
     const targetFish = LEVEL_GOALS[currentLevel]?.targetFish;
     
-    // Check inventory using state is fine here as catch is one-off, but latest inventory might be better
+    // 檢查庫存是否已包含目標魚（避免重覆強制出現）
     const alreadyCaughtTarget = inventory[targetFish]?.count > 0;
     
     const data = await generateFishDetails(

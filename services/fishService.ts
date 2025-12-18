@@ -82,7 +82,7 @@ const COOKING_TIPS = [
   "建議清蒸，保留原始鮮甜。",
   "肉質適合火烤，加點海鹽風味更佳。",
   "適合做成生魚片，入口即化。",
-  "建議紅燒，風味濃厚。",
+  "建議紅燒，讓醬汁滲透進纖維中。",
   "油炸至酥脆是最好的處理方式。"
 ];
 
@@ -121,7 +121,7 @@ export const generateFishDetails = async (
       else if (rand > (0.45 - luckBonus * 2)) rarity = 2;
   }
 
-  // 嚴格根據傳入的等級選擇生態池
+  // 根據等級選擇生態池
   const biome = LEVEL_BIOMES[playerLevel] || DEFAULT_BIOME;
 
   let name = "";
@@ -129,7 +129,7 @@ export const generateFishDetails = async (
   
   if (forceTarget && targetFishName) {
       name = targetFishName;
-      description = `【等級 ${playerLevel} 任務目標】棲息在 ${biome.name} 的珍貴生物。`;
+      description = `這是等級 ${playerLevel} 的傳說目標，棲息在「${biome.name}」的稀有生物。`;
   } else {
       const pIdx = Math.floor(rng() * biome.prefixes.length);
       const tIdx = Math.floor(rng() * biome.types.length);
@@ -138,9 +138,9 @@ export const generateFishDetails = async (
       name = `${biome.prefixes[pIdx]}${biome.types[tIdx]}`;
       description = biome.descriptions[dIdx];
 
-      // 再次確保隨機生成的名稱不會剛好撞到目標魚
+      // 防止隨機生成的名稱剛好撞到目前的目標魚
       if (name === targetFishName) {
-          name = `變異的${name}`;
+          name = `異變的${name}`;
       }
   }
 
@@ -164,5 +164,4 @@ export const generateFishDetails = async (
   };
 };
 
-// 用於獲取海域名稱的輔助函數
 export const getBiomeName = (level: number) => LEVEL_BIOMES[level]?.name || "未知海域";
